@@ -1,0 +1,224 @@
+
+import pandas as pd
+import numpy as np
+from sklearn import preprocessing
+import matplotlib.pyplot as plt
+import os
+os.chdir(r'C:\Users\si520640\Downloads\All P1 Files')
+train = pd.read_excel('p1-customers.xlsx')
+test = pd.read_excel('p1-mailinglist.xlsx')
+
+train= train.drop(['Name','Customer_ID','Responded_to_Last_Catalog','Address','State'], axis=1)
+test =test.drop(['Name','Customer_ID','Score_No', 'Score_Yes','Address','State'],axis=1)
+
+train['Avg_Num_Products_Purchased'].plot(kind='box')
+len(train[train['Avg_Num_Products_Purchased']<15])
+# Removing Outliers 
+
+# plt.boxplot(train['Avg_Num_Products_Purchased'])
+# # show plot
+# plt.show()
+# train = train[train['Avg_Num_Products_Purchased']<15]
+
+#Pairplot
+
+import seaborn as sb
+dataplot = sb.heatmap(train.corr(), cmap="OrRd_r", annot=True)
+
+sb.pairplot(train)
+
+g = sb.PairGrid(train)
+g.map_upper(sb.scatterplot, color='orange')
+g.map_lower(sb.scatterplot, color='orange')
+g.map_diag(plt.hist, color='maroon')
+plt.show()
+
+#Preprocessing
+
+train['ZIP'] = train['ZIP'].astype(str)
+train['Store_Number'] = train['Store_Number'].astype(str)
+train['Customer_Segment'] = pd.factorize(train['Customer_Segment'])[0]
+#train['Address'] = train['Address'].str.replace('\d+', '')
+train['City'] = pd.factorize(train['City'])[0]
+train['Customer_Segment'] = pd.factorize(train['Customer_Segment'])[0]
+train['ZIP'] = pd.factorize(train['ZIP'])[0]
+train['Store_Number'] = pd.factorize(train['Store_Number'])[0]
+
+test['ZIP'] = test['ZIP'].astype(str)
+test['Store_Number'] = test['Store_Number'].astype(str)
+test['Customer_Segment'] = pd.factorize(test['Customer_Segment'])[0]
+#test['Address'] = test['Address'].str.replace('\d+', '')
+test['City'] = pd.factorize(test['City'])[0]
+test['Customer_Segment'] = pd.factorize(test['Customer_Segment'])[0]
+test['ZIP'] = pd.factorize(test['ZIP'])[0]
+test['Store_Number'] = pd.factorize(test['Store_Number'])[0]
+
+# Normalization
+
+scaler = preprocessing.MinMaxScaler()
+Tr_names = train.columns
+Tr_a = scaler.fit_transform(train)
+train_df = pd.DataFrame(Tr_a, columns=Tr_names)
+
+train_df['Avg_Sale_Amount']=train['Avg_Sale_Amount']
+
+scaler = preprocessing.MinMaxScaler()
+Tst_names = test.columns
+Tst_a = scaler.fit_transform(test)
+test_df = pd.DataFrame(Tst_a, columns=Tst_names)
+
+
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+  
+# the independent variables set
+X = train_df.drop(["Avg_Sale_Amount"],axis=1)
+  
+# VIF dataframe
+vif_data = pd.DataFrame()
+vif_data["feature"] = X.columns
+  
+# calculating VIF for each feature
+vif_data["VIF"] = [variance_inflation_factor(X.values, i)
+                          for i in range(len(X.columns))]
+print(vif_data)
+
+# Regression
+
+X = train_df.drop(["Avg_Sale_Amount"],axis=1)
+y = train_df.Avg_Sale_Amount
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import r2_score
+from sklearn import linear_model
+import sklearn.metrics as metrics
+X_train, X_test, y_train, y_test = train_test_split(X, y,random_state = 0,test_size=0.25)
+
+
+# regr = linear_model.LinearRegression()
+# regr.fit(X_train,y_train)
+# y_pred = regr.predict(X_test)
+# print(metrics.mean_absolute_error(y_test, y_pred))
+# print(metrics.mean_absolute_percentage_error(y_test, y_pred))
+
+
+
+
+def regression_results(y_true, y_pred):
+
+    # Regression metrics
+    explained_variance=metrics.explained_variance_score(y_true, y_pred)
+    mean_absolute_error=metrics.mean_absolute_error(y_true, y_pred) 
+    mse=metrics.mean_squared_error(y_true, y_pred) 
+    mean_squared_log_error=metrics.mean_squared_log_error(y_true, y_pred)
+    median_absolute_error=metrics.median_absolute_error(y_true, y_pred)
+    r2=metrics.r2_score(y_true, y_pred)
+
+    print('explained_variance: ', round(explained_variance,4))    
+    print('mean_squared_log_error: ', round(mean_squared_log_error,4))
+    print('r2: ', round(r2,4))
+    print('MAE: ', round(mean_absolute_error,4))
+    print('MSE: ', round(mse,4))
+    print('RMSE: ', round(np.sqrt(mse),4))
+ 
+    
+from statsmodels.api import OLS
+regression=OLS(y_train,X_train).fit()
+OLS(y_train,X_train).fit().summary()
+
+y_pred_OLS = regression.predict(X_test)
+print(metrics.mean_absolute_error(y_test, y_pred_OLS) )
+print(metrics.mean_absolute_percentage_error(y_test, y_pred_OLS) )
+
+regression_results(y_test, y_pred_OLS)
+   
+
+from sklearn.metrics import r2_score
+r2_score(y_test, y_pred_OLS)   
+print(1-(1-r2_score(y_test, y_pred_OLS))*((len(X_test)-1)/(len(X_test)-len(X_test.columns)-1)))
+
+
+# full data train on complete training data set 
+ols=OLS(y,X).fit()
+y_pred_OLS = ols.predict(X_test)
+OLS(y_train,X_train).fit().summary()
+print(metrics.mean_absolute_error(y_test, y_pred_OLS) )
+print(metrics.mean_absolute_percentage_error(y_test, y_pred_OLS) )
+
+regression_results(y_test, y_pred_OLS)
+
+
+
+# from sklearn.ensemble import RandomForestRegressor
+# regr = RandomForestRegressor(500,max_depth=4, random_state=0)
+# regr.fit(X_train,y_train)
+# y_pred_rf=regr.predict(X_test)
+# print(metrics.mean_absolute_error(y_test, y_pred_rf))
+# print(metrics.mean_absolute_percentage_error(y_test, y_pred_rf))
+
+
+df=pd.DataFrame()
+df['actuals']=y_test
+df['Pred_OLS']=y_pred_OLS
+
+# Assumptions
+#residuals calc
+residuals = y_test.values-y_pred_OLS
+mean_residuals = np.mean(residuals)
+print("Mean of Residuals {}".format(mean_residuals))
+
+
+# heteroscedasticity
+import seaborn as sns
+import matplotlib.pyplot as plt
+p = sns.scatterplot(y_pred_OLS,residuals,color='maroon')
+plt.xlabel('y_pred/predicted values')
+plt.ylabel('Residuals')
+
+p = sns.lineplot([0,2500],[0,0],color='Black')
+p = plt.title('Residuals vs fitted values plot for homoscedasticity check')
+
+import statsmodels.stats.api as sms
+from statsmodels.compat import lzip
+name = ['F statistic', 'p-value']
+test = sms.het_goldfeldquandt(residuals, X_test)
+lzip(name, test)
+
+
+#resudals normality check
+p = sns.distplot(residuals,kde=True,color = 'maroon')
+p = plt.title('Normality of error terms/residuals')
+
+import scipy
+scipy.stats.anderson(residuals, dist='norm')
+
+# No auto correlation of residuals
+plt.figure(figsize=(10,5))
+p = sns.lineplot(y_pred_OLS,residuals,marker='o',color='maroon')
+plt.xlabel('y_pred/predicted values')
+plt.ylabel('Residuals')
+
+p = sns.lineplot([0,2600],[0,0],color='red')
+p = plt.title('Residuals vs fitted values plot for autocorrelation check')
+
+
+
+from statsmodels.stats import diagnostic as diag
+min(diag.acorr_ljungbox(residuals , lags = 40)[1])
+
+
+# Test Predections
+t1=pd.read_excel('p1-mailinglist.xlsx')
+
+# regr.predict(test_df)
+# t1['Sale_price_pred']=regr.predict(test_df)
+# t1.to_csv (r'C:\Users\si520640\Downloads\All P1 Files\Predictions_sales.csv', index = False, header=True)
+
+ols.predict(test_df)
+t1['Sale_price_pred_OLS']=ols.predict(test_df)
+t1.to_csv (r'C:\Users\si520640\Downloads\All P1 Files\Predictions_sales_OLS.csv', index = False, header=True)
+
+df.to_csv(r'C:\Users\si520640\Downloads\All P1 Files\Actual_predicted_model.csv', index = False, header=True)
+
+
+
