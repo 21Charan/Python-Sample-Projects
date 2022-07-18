@@ -1,4 +1,4 @@
-
+#Regression Analysis (Line 1 to 222) 
 import pandas as pd
 import numpy as np
 from sklearn import preprocessing
@@ -202,7 +202,6 @@ p = sns.lineplot([0,2600],[0,0],color='red')
 p = plt.title('Residuals vs fitted values plot for autocorrelation check')
 
 
-
 from statsmodels.stats import diagnostic as diag
 min(diag.acorr_ljungbox(residuals , lags = 40)[1])
 
@@ -219,6 +218,155 @@ t1['Sale_price_pred_OLS']=ols.predict(test_df)
 t1.to_csv (r'C:\Users\si520640\Downloads\All P1 Files\Predictions_sales_OLS.csv', index = False, header=True)
 
 df.to_csv(r'C:\Users\si520640\Downloads\All P1 Files\Actual_predicted_model.csv', index = False, header=True)
+
+
+
+# NLP Text Classificatation (Till Line 355)
+
+import pandas as pd
+import numpy as np
+#for text pre-processing
+import re, string
+import nltk
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+from nltk.stem import SnowballStemmer
+from nltk.corpus import wordnet
+from nltk.stem import WordNetLemmatizer
+nltk.download('punkt')
+nltk.download('averaged_perceptron_tagger')
+nltk.download('wordnet')
+#for model-building
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.metrics import classification_report, f1_score, accuracy_score, confusion_matrix
+from sklearn.metrics import roc_curve, auc, roc_auc_score
+# bag of words
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import CountVectorizer
+#for word embedding
+# import gensim
+# from gensim.models import Word2Vec
+
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.naive_bayes import GaussianNB
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import LinearSVC
+from sklearn.ensemble import RandomForestClassifier
+
+from sklearn.metrics import accuracy_score
+import sklearn.metrics as metrics
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix 
+from sklearn.metrics import classification_report
+from sklearn import metrics
+
+from time import time
+
+import warnings
+warnings.filterwarnings("ignore")
+
+data = pd.read_csv(r'C:\Users\si520640\Downloads\Sample_1NLP.csv', encoding = 'ISO-8859-1')
+data["Classificatation"].value_counts().plot(kind='bar')
+len(data["Classificatation"].unique())
+data['Text']=data['Headline']+data['Classificatation']
+
+data['Category'] = pd.factorize(data['Classificatation'])[0]
+maping=pd.DataFrame(pd.pivot_table(data,index=['Category','Classificatation'],values='Headline',aggfunc='count')).reset_index().drop('Headline',axis=1)
+
+df=data[['Text','Category']]
+df.isna().sum()
+
+df['word_count'] = df['Text'].apply(lambda x: len(str(x).split()))
+print(df[df['Category']==1]['word_count'].mean()) #Disaster tweets
+print(df[df['Category']==0]['word_count'].mean()) #Non-Disaster tweets
+
+
+
+#convert to lowercase, strip and remove punctuations
+def preprocess(text):
+    text = text.lower() 
+    text=text.strip()  
+    text=re.compile('<.*?>').sub('', text) 
+    text = re.compile('[%s]' % re.escape(string.punctuation)).sub(' ', text)  
+    text = re.sub('\s+', ' ', text)  
+    text = re.sub(r'\[[0-9]*\]',' ',text) 
+    text=re.sub(r'[^\w\s]', '', str(text).lower().strip())
+    text = re.sub(r'\d',' ',text) 
+    text = re.sub(r'\s+',' ',text) 
+    return text
+
+ 
+# STOPWORD REMOVAL
+def stopword(string):
+    a= [i for i in string.split() if i not in stopwords.words('english')]
+    return ' '.join(a)
+#LEMMATIZATION
+# Initialize the lemmatizer
+wl = WordNetLemmatizer()
+ 
+# This is a helper function to map NTLK position tags
+def get_wordnet_pos(tag):
+    if tag.startswith('J'):
+        return wordnet.ADJ
+    elif tag.startswith('V'):
+        return wordnet.VERB
+    elif tag.startswith('N'):
+        return wordnet.NOUN
+    elif tag.startswith('R'):
+        return wordnet.ADV
+    else:
+        return wordnet.NOUN
+# Tokenize the sentence
+def lemmatizer(string):
+    word_pos_tags = nltk.pos_tag(word_tokenize(string)) # Get position tags
+    a=[wl.lemmatize(tag[0], get_wordnet_pos(tag[1])) for idx, tag in enumerate(word_pos_tags)] # Map the position tag and lemmatize the word/token
+    return " ".join(a)
+
+def finalpreprocess(string):
+    return lemmatizer(stopword(preprocess(string)))
+df['clean_text'] = df['Text'].apply(lambda x: finalpreprocess(x))
+
+#SPLITTING THE TRAINING DATASET INTO TRAIN AND TEST
+X_train, X_test, y_train, y_test = train_test_split(df["clean_text"],df["Category"],test_size=0.3,shuffle=True)
+#Word2Vec
+# Word2Vec runs on tokenized sentences
+X_train_tok= [nltk.word_tokenize(i) for i in X_train]  
+X_test_tok= [nltk.word_tokenize(i) for i in X_test]
+
+#Tf-Idf
+tfidf_vectorizer = TfidfVectorizer(use_idf=True)
+X_train_vectors_tfidf = tfidf_vectorizer.fit_transform(X_train) 
+X_test_vectors_tfidf = tfidf_vectorizer.transform(X_test)
+
+
+nb_tfidf = RandomForestClassifier()
+nb_tfidf.fit(X_train_vectors_tfidf, y_train)  
+#Predict y value for test dataset
+y_predict = nb_tfidf.predict(X_test_vectors_tfidf)
+y_prob = nb_tfidf.predict_proba(X_test_vectors_tfidf)[:,1]
+print(classification_report(y_test,y_predict))
+accuracy_score(y_test,y_predict)
+print('Confusion Matrix:',confusion_matrix(y_test, y_predict))
+ 
+fpr, tpr, thresholds = roc_curve(y_test, y_prob)
+roc_auc = auc(fpr, tpr)
+print('AUC:', roc_auc)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
